@@ -173,7 +173,7 @@ async def portfolioAllotments():
     })
     try:
         await allotment_records.insert_one(data)
-        asyncio.create_task(allotment_records(data['name'],data['email_id'],data['committee'],data['portfolio']))
+        asyncio.create_task(allotmentEmail(data['name'],data['email_id'],data['committee'],data['portfolio']))
         return make_response(jsonify({"Message":"Allotments completed successfully"}))
     except Exception as e:
         return make_response(jsonify({"Error":"Error in processing allotments.\n{e}"}))
