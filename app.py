@@ -5,6 +5,7 @@ import asyncio
 from dotenv import load_dotenv
 from email_services.registration_email import registrationEmail
 from email_services.payment_email import paymentEmail
+from email_services.allotment_email import allotmentEmail
 from quart import Quart, request, jsonify, make_response, redirect
 from quart_cors import cors
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -20,6 +21,7 @@ client = AsyncIOMotorClient(os.getenv('MONGO_URI'))
 db = client.get_default_database()
 registration_records = db.registration_records
 payment_records = db.payment_records
+allotment_records = db.allotment_records
 
 MERCHANT_KEY = os.getenv('MERCHANT_KEY')
 SALT = os.getenv('SALT')
@@ -161,6 +163,20 @@ async def paymentSuccess():
 @app.route('/api/payment_failture', methods=['POST'])
 async def paymentFailture():
     return redirect("http://localhost:5173/unsuccessful")
+
+@app.route('/api/allotment', methods=['POST'])
+async def portfolioAllotments():
+    #expects the following keys: MUNARCHY_ID, name, email_id, committee, portfolio
+    data = await request.get_json()
+    data.update({
+        "timeStamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    })
+    try:
+        await allotment_records.insert_one(data)
+        asyncio.create_task(allotment_records(data['name'],data['email_id'],data['committee'],data['portfolio']))
+        return make_response(jsonify({"Message":"Allotments completed successfully"}))
+    except Exception as e:
+        return make_response(jsonify({"Error":"Error in processing allotments.\n{e}"}))
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
