@@ -1,109 +1,111 @@
 import os
-import smtplib
 import uuid
 import json
+import asyncio
 from dotenv import load_dotenv
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from flask import Flask, request, jsonify, make_response
-from flask_cors import CORS
-from flask_pymongo import PyMongo
+from email_services.registration_email import registrationEmail
+from email_services.payment_email import paymentEmail
+from quart import Quart, request, jsonify, make_response, redirect
+from quart_cors import cors
+from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime
-from easebuzz_lib.easebuzz_payment_gateway import Easebuzz
+from utils.generate_id import generateTxnId, generateMunarchyId
+from easebuzz_lib.easebuzz_payment_gateway import Easebuzz 
 
 load_dotenv()
-app = Flask(__name__)
-cors = CORS(app)
-app.config['MONGO_URI'] = os.getenv('MONGO_URI')
-mongo = PyMongo(app)
+app = Quart(__name__)
+CORS = cors(app)
+
+client = AsyncIOMotorClient(os.getenv('MONGO_URI'))
+db = client.get_default_database()
+registration_records = db.registration_records
+payment_records = db.payment_records
+
 MERCHANT_KEY = os.getenv('MERCHANT_KEY')
 SALT = os.getenv('SALT')
 ENV = os.getenv('ENV')
-registration_records = mongo.db.registration_records
-payment_records = mongo.db.payment_records
-
 
 @app.route('/api/register', methods=["POST"])
-def handleRegistrations():
-    data = request.get_json()
+async def handle_registrations():
+    data = await request.get_json()
 
-    if registration_records.find_one({"name": data["name"]}) and registration_records.find_one({"email_id": data["email_id"]}):
+    existing_user = await registration_records.find_one({
+        "name": data['name'],
+        "email_id": data['email_id']
+    })
+
+
+    if existing_user:
         return jsonify({
             "message": "user with the given username or email already exists"
         }), 400
 
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    salt=f"{timestamp[11:13]}{timestamp[14:16]}{timestamp[17:19]}"
+    salt = f"{timestamp[11:13]}{timestamp[14:16]}{timestamp[17:19]}"
     data.update({
-        "pay_status":False,
-        "MUNARCHY_ID":f"{data["name"][0:4]}{data["number"][0:4]}{salt}{data["experience"]}",
-        "timeStamp":datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "pay_status": False,
+        "MUNARCHY_ID": generateMunarchyId(data['name'],data['number'],data['experience'], salt),
+        "timeStamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     })
+
     try:
-        _id = registration_records.insert_one(data).inserted_id
-        SENDER_EMAIL = os.getenv("SENDER_EMAIL")
-        RECIEVER_EMAIL = data["email_id"]
-        subject = "Your MUNARCHY ID has been successfully generated"
-        body = f"Dear {data["name"]}, your MUNARCHY ID is {data["MUNARCHY_ID"]}. Happy munning !"
+        result = await registration_records.insert_one(data)
+        
+        asyncio.create_task(registrationEmail(data["name"], data["email_id"], data["MUNARCHY_ID"]))
 
-        message = MIMEMultipart()
-        message['From'] = SENDER_EMAIL
-        message['To'] = RECIEVER_EMAIL
-        message['Subject'] = subject
+        response = await make_response(jsonify({
+            "message": "New user registered successfully.",
+            "MUNARCHY_ID": data["MUNARCHY_ID"]
+        }), 201)
+        return response
 
-        message.attach(MIMEText(body, 'plain'))
-
-
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:
-            server.starttls()
-            server.login(SENDER_EMAIL, os.getenv("EMAIL_SECRET_KEY"))
-
-            server.sendmail(SENDER_EMAIL, RECIEVER_EMAIL, message.as_string())
     except Exception as e:
         return jsonify({
-            "Error": f"A new record with the given data could not be created. The following exception occured\n{e}"
+            "Error": f"A new record with the given data could not be created. The following exception occurred\n{e}"
         }), 500
 
-    response = make_response(jsonify({
-        "message": f"New user registered successfully.",
-        "MUNARCHY_ID": f"{data["MUNARCHY_ID"]}"
-    }),201)
-    return response
-
 @app.route('/api/checkStatus', methods=['POST'])
-def checkPaymentStatus():
-    munarchyId = request.get_json()["munarchy_id"]
+async def check_payment_status():
+    data = await request.get_json()
+    munarchy_id = data["munarchy_id"]
+    
     try:
-        paymentStatus = registration_records.find_one({"MUNARCHY_ID":munarchyId})["pay_status"]
-        response = make_response(jsonify({
-            "pay_status": paymentStatus,
-        }),201)
-        return response
-    except TypeError as e:
-        response = make_response(jsonify({
+        user = await registration_records.find_one({"MUNARCHY_ID": munarchy_id})
+        if not user:
+            return jsonify({"Error": "User not found"}), 404
+        
+        return await make_response(jsonify({
+            "pay_status": user.get("pay_status", False),
+        }), 201)
+    
+    except Exception as e:
+        return jsonify({
             "Error": f"Error Processing your request. {e}",
-        }),400)
-        return response
+        }), 400
 
 @app.route('/api/payments', methods=['POST'])
-def easebuzzInitiatePayment():
-    data = request.get_json()
-    munarchyId = data["munarchy_id"]
+async def easebuzz_initiate_payment():
+    data = await request.get_json()
+    munarchy_id = data["munarchy_id"]
     accomodation_status = data['accomodation_status']
 
-    accomDict = {
+    accom_dict = {
         "yes": "3000.00",
         "no": "1600.00"
     }
 
-    amount = accomDict[accomodation_status]
+    amount = accom_dict[accomodation_status]
 
-    user = registration_records.find_one({"MUNARCHY_ID":munarchyId})
-    easebuzzObj = Easebuzz(MERCHANT_KEY,SALT,ENV)
-    txnId = f'IRMUN{str(uuid.uuid4()).replace('-','')}'
+    user = await registration_records.find_one({"MUNARCHY_ID": munarchy_id})
+    
+    if not user:
+        return jsonify({"Error": "User not found"}), 404
 
-    postDict = {
-        'txnid': txnId,
+    easebuzz_obj = Easebuzz(MERCHANT_KEY, SALT, ENV)
+    txn_id = generateTxnId()
+
+    post_dict = {
+        'txnid': txn_id,
         'firstname': user["name"],
         'phone': user["number"],
         'email': user["email_id"],
@@ -115,20 +117,50 @@ def easebuzzInitiatePayment():
         'zipcode': '247667',
         'address1': 'Roorkee - Haridwar Highway, Roorkee, Uttarakhand 247667',
         'state': 'Uttarakhand',
-        'country': 'India'
+        'country': 'India',
+        'udf1': accomodation_status,
+        'udf2': munarchy_id
     }
 
-    final_response = easebuzzObj.initiatePaymentAPI(postDict)
+    final_response = easebuzz_obj.initiatePaymentAPI(post_dict)
     result = json.loads(final_response)
 
-
-    if result["status"]==1:
+    if result["status"] == 1:
         return result['data']
     else: 
-        return make_response(jsonify({
-            "Error": "Failed to process, please try again !"
-        }))
+        return jsonify({
+            "Error": "Failed to process, please try again!"
+        }), 400
 
+@app.route('/api/payment_success', methods=['POST'])
+async def paymentSuccess():
+    data = str(await request.get_data())
+    responseDict = {}
+    dataList = data.split('&')
+    for item in dataList:
+        itemList = item.split('=')
+        responseDict[f'{itemList[0]}'] = itemList[1]
+    
+    popKeys = ['udf3','udf4','udf5','udf6','udf7','udf8','udf9']
+    for key in popKeys:
+        responseDict.pop(key)
+    responseDict.update({
+        "accomodation": responseDict.pop('udf1'),
+        "MUNARCHY_ID": responseDict.pop('udf2'),
+        "timeStamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    })
+    responseDict['email'] = responseDict['email'].replace('%40','@')
+    try:
+        await registration_records.update_one({"MUNARCHY_ID":responseDict['MUNARCHY_ID']},{"$set":{"pay_status":True}})
+        await payment_records.insert_one(responseDict)
+        asyncio.create_task(paymentEmail(responseDict['firstname'],responseDict['email'],responseDict['net_amount_debit'],responseDict['accomodation']))
+        return redirect("http://localhost:5173/successful")
+    except Exception as e:
+        return make_response(jsonify({"Error":"Failed in updating data. Please try again"}))
+
+@app.route('/api/payment_failture', methods=['POST'])
+async def paymentFailture():
+    return redirect("http://localhost:5173/unsuccessful")
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
