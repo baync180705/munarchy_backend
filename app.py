@@ -156,13 +156,13 @@ async def paymentSuccess():
         await registration_records.update_one({"MUNARCHY_ID":responseDict['MUNARCHY_ID']},{"$set":{"pay_status":True}})
         await payment_records.insert_one(responseDict)
         asyncio.create_task(paymentEmail(responseDict['firstname'],responseDict['email'],responseDict['net_amount_debit'],responseDict['accomodation']))
-        return redirect("http://localhost:5173/successful")
+        return redirect(f"{os.getenv("BASE_URL")}/successful")
     except Exception as e:
         return make_response(jsonify({"Error":"Failed in updating data. Please try again"}))
 
 @app.route('/api/payment_failture', methods=['POST'])
 async def paymentFailture():
-    return redirect("http://localhost:5173/unsuccessful")
+    return redirect(f"{os.getenv("BASE_URL")}/unsuccessful")
 
 @app.route('/api/allotment', methods=['POST'])
 async def portfolioAllotments():
