@@ -2,6 +2,7 @@ import os
 import uuid
 import json
 import asyncio
+import uvicorn
 from dotenv import load_dotenv
 from email_services.registration_email import registrationEmail
 from email_services.payment_email import paymentEmail
@@ -188,4 +189,4 @@ async def portfolioAllotments():
         return make_response(jsonify({"Error":"Error in processing allotments.\n{e}"}),400)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    uvicorn.run("app:app", host="0.0.0.0", port=80, reload=False, ssl_certfile=os.getenv("SSL_CERTFILE"), ssl_keyfile=os.getenv("SSL_KEYFILE"))
