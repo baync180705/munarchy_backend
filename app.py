@@ -100,8 +100,8 @@ async def easebuzz_initiate_payment():
     accomodation_status = data['accomodation_status']
 
     accom_dict = {
-        "yes": "0.00",
-        "no": "0.00"
+        "yes": "0.50",
+        "no": "0.50"
     }
 
     amount = accom_dict[accomodation_status]
@@ -141,6 +141,10 @@ async def easebuzz_initiate_payment():
         return jsonify({
             "Error": "Failed to process, please try again!"
         }), 400
+
+@app.route('/api/ping', methods=["GET"])
+def get_status():
+    return jsonify({"status": "OK"}), 200
 
 @app.route('/api/payment_success', methods=['POST'])
 async def paymentSuccess():
