@@ -27,6 +27,7 @@ allotment_records = db.allotment_records
 MERCHANT_KEY = os.getenv('MERCHANT_KEY')
 SALT = os.getenv('SALT')
 ENV = os.getenv('ENV')
+sequence_number = 0
 
 @app.route('/api/register', methods=["POST"])
 async def handle_registrations():
@@ -42,12 +43,11 @@ async def handle_registrations():
         return jsonify({
             "message": "user with the given username or email already exists"
         }), 400
-
+    sequence_number+=1
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    salt = f"{timestamp[11:13]}{timestamp[14:16]}{timestamp[17:19]}"
     data.update({
         "pay_status": False,
-        "MUNARCHY_ID": generateMunarchyId(data['name'],data['number'],data['experience'], salt),
+        "MUNARCHY_ID": generateMunarchyId(data['name'],str(sequence_number).rjust(4,'0')),
         "timeStamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     })
 
