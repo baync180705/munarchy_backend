@@ -4,12 +4,14 @@ import json
 import asyncio
 import uvicorn
 from dotenv import load_dotenv
+from models.registration_model import registrationModel
 from email_services.registration_email import registrationEmail
 from email_services.payment_email import paymentEmail
 from email_services.allotment_email import allotmentEmail
 from quart import Quart, request, jsonify, make_response, redirect
 from quart_cors import cors
 from motor.motor_asyncio import AsyncIOMotorClient
+from marshmallow import ValidationError
 from datetime import datetime
 from utils.generate_id import generateTxnId, generateMunarchyId
 from easebuzz_lib.easebuzz_payment_gateway import Easebuzz 
@@ -31,7 +33,12 @@ sequence_number = 0
 
 @app.route('/api/register', methods=["POST"])
 async def handle_registrations():
-    data = await request.get_json()
+    try:
+        data = await request.get_json()
+        registrationData = registrationModel.load(data)
+    except ValidationError as e:
+        print(data)
+        return jsonify({"error": e.messages}), 400
 
     existing_user = await registration_records.find_one({
         "name": data['name'],
@@ -43,12 +50,13 @@ async def handle_registrations():
         return jsonify({
             "message": "user with the given username or email already exists"
         }), 400
+    global sequence_number
     sequence_number+=1
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     data.update({
         "pay_status": False,
         "MUNARCHY_ID": generateMunarchyId(data['name'],str(sequence_number).rjust(4,'0')),
-        "timeStamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "timeStamp": timestamp
     })
 
     try:
@@ -189,4 +197,4 @@ async def portfolioAllotments():
         return make_response(jsonify({"Error":"Error in processing allotments.\n{e}"}),400)
 
 if __name__ == '__main__':
-    uvicorn.run("app:app", host="0.0.0.0", port=80, reload=False, ssl_certfile=os.getenv("SSL_CERTFILE"), ssl_keyfile=os.getenv("SSL_KEYFILE"))
+    uvicorn.run("app:app", host="0.0.0.0", port=5000, reload=False, ssl_certfile=os.getenv("SSL_CERTFILE"), ssl_keyfile=os.getenv("SSL_KEYFILE"))
