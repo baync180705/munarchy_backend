@@ -37,7 +37,6 @@ async def handle_registrations():
         data = await request.get_json()
         registrationData = registrationModel.load(data)
     except ValidationError as e:
-        print(data)
         return jsonify({"error": e.messages}), 400
 
     existing_user = await registration_records.find_one({
