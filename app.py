@@ -101,8 +101,8 @@ async def easebuzz_initiate_payment():
     accomodation_status = data['accomodation_status']
 
     accom_dict = {
-        "yes": "3000.00",
-        "no": "1600.00"
+        "yes": "0.00",
+        "no": "0.00"
     }
 
     amount = accom_dict[accomodation_status]
