@@ -168,13 +168,13 @@ async def paymentSuccess():
         await registration_records.update_one({"MUNARCHY_ID":responseDict['MUNARCHY_ID']},{"$set":{"pay_status":True}})
         await payment_records.insert_one(responseDict)
         asyncio.create_task(paymentEmail(responseDict['firstname'],responseDict['email'],responseDict['net_amount_debit'],responseDict['accomodation']))
-        return redirect(f"{os.getenv("BASE_URL")}/successful")
+        return redirect(f"{os.getenv('BASE_URL')}/successful")
     except Exception as e:
         return make_response(jsonify({"Error":"Failed in updating data. Please try again"}),500)
 
 @app.route('/api/payment_failture', methods=['POST'])
 async def paymentFailture():
-    return redirect(f"{os.getenv("BASE_URL")}/unsuccessful")
+    return redirect(f"{os.getenv('BASE_URL')}/unsuccessful")
 
 @app.route('/api/allotment', methods=['POST'])
 async def portfolioAllotments():
@@ -200,4 +200,4 @@ async def portfolioAllotments():
         return make_response(jsonify({"Error":"Error in processing allotments.\n{e}"}),400)
 
 if __name__ == '__main__':
-    uvicorn.run("app:app", host="0.0.0.0", port=5000, reload=False, ssl_certfile=os.getenv("SSL_CERTFILE"), ssl_keyfile=os.getenv("SSL_KEYFILE"))
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=False, ssl_certfile=os.getenv("SSL_CERTFILE"), ssl_keyfile=os.getenv("SSL_KEYFILE"))
