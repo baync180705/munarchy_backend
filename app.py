@@ -55,7 +55,7 @@ async def handle_registrations():
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     data.update({
         "pay_status": False,
-        "MUNARCHY_ID": generateMunarchyId(data['name'],str(sequence_number).rjust(4,'0')),
+        "MUNARCHY_ID": generateMunarchyId(data['sex'],data['experience'],data['qualification']),
         "timeStamp": timestamp
     })
 
