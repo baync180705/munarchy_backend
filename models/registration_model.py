@@ -12,5 +12,6 @@ class RegistrationModel(Schema):
     committee_pref = fields.List(fields.Str(required=True),validate=validate.Length(equal=3), required=True)
     portfolio_pref = fields.List(fields.List(fields.Str(),validate=validate.Length(equal=3), required=True),validate=validate.Length(equal=3), required=True)
     accommodation = fields.Str(required=False, allow_none=True)
+    code = fields.Str(required=False, allow_none=True)
 
 registrationModel = RegistrationModel()
