@@ -25,6 +25,7 @@ db = client.get_default_database()
 registration_records = db.registration_records
 payment_records = db.payment_records
 allotment_records = db.allotment_records
+failed_transaction = db.failed_transaction
 
 MERCHANT_KEY = os.getenv('MERCHANT_KEY')
 SALT = os.getenv('SALT')
@@ -174,10 +175,31 @@ async def paymentSuccess():
 
 @app.route('/api/payment_failture', methods=['POST'])
 async def paymentFailture():
-    return redirect(f"{os.getenv('BASE_URL')}/unsuccessful")
+    data = str(await request.get_data())
+    responseDict = {}
+    dataList = data.split('&')
+    for item in dataList:
+        itemList = item.split('=')
+        responseDict[f'{itemList[0]}'] = itemList[1]
+    
+    popKeys = ['udf3','udf4','udf5','udf6','udf7','udf8','udf9','udf10']
+    for key in popKeys:
+        responseDict.pop(key)
+    responseDict.update({
+        "accomodation": responseDict.pop('udf1'),
+        "MUNARCHY_ID": responseDict.pop('udf2'),
+        "timeStamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    })
+    responseDict['email'] = responseDict['email'].replace('%40','@')
+    try:
+        await failed_transaction.insert_one(responseDict)
+        return redirect(f"{os.getenv('BASE_URL')}/unsuccessful")
+    except Exception as e:
+        return make_response(jsonify({"Error":"Failed in updating data. Please try again"}),500)
+
 
 @app.route('/api/easebuzz_webhook', methods=['POST'])
-async def paymentFailture():
+async def easebuzz_webhook():
     data = await request.get_json
     if data['status'] == 'success':
         popKeys = ['udf3','udf4','udf5','udf6','udf7','udf8','udf9','udf10']
