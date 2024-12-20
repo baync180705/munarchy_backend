@@ -11,9 +11,10 @@ def generateMunarchyId(gender, exp, isSchoolStudent):
             index = '00001'
             f.write('1')
     else:
-        with open(file_path, 'r+') as f:
+        with open(file_path) as f:
             context = f.read()
-            index = str(int(context) + 1).rjust(5,'0')
+        with open(file_path, 'w') as f:
+            index = str(int(context)+1).rjust(5,'0')
             f.write(index)
     mapGenderToCode = {
         'male': '7',
