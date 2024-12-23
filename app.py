@@ -87,6 +87,7 @@ async def check_payment_status():
         
         return await make_response(jsonify({
             "pay_status": user.get("pay_status", False),
+            "sex": user.get("sex", False)
         }), 201)
     
     except Exception as e:
@@ -101,8 +102,8 @@ async def easebuzz_initiate_payment():
     accomodation_status = data['accomodation_status']
 
     accom_dict = {
-        "yes": "3190",
-        "no": "1704"
+        "yes": "3195.00",
+        "no": "1704.00"
     }
 
     amount = accom_dict[accomodation_status]
