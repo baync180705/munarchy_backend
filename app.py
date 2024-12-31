@@ -118,7 +118,7 @@ async def easebuzz_initiate_payment():
 
     post_dict = {
         'txnid': txn_id,
-        'firstname': user["name"],
+        'firstname': str(user["name"]).split(" ")[0],
         'phone': user["number"],
         'email': user["email_id"],
         'amount': amount,
