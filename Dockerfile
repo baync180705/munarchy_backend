@@ -8,4 +8,5 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 EXPOSE 8000
+WORKDIR /app/src
 CMD ["gunicorn", "app:app", "-c", "gunicorn_config.py"]
