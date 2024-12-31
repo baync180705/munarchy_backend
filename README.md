@@ -60,14 +60,11 @@ The backend repository for Munarchy'25 - IIT Roorkee's flagship MUN event.
 
 ## 📁 Project Structure
 
-- **src/api/routes/**: API routes for user registration and management.
-- **src/models/**: Data models for the application.
-- **src/services/**: Business logic and services for the application.
-- **src/utils/**: Utility functions and helpers.
-- **src/config/**: Configuration settings for the application.
-- **src/core/**: Core functionality and database operations.
-- **src/tests/**: Test cases for the application.
-- **src/main.py**: Entry point for the application.
+- **api/routes/**: API routes and business logic for user registration, payment and allotment.
+- **models/**: Data models for the application.
+- **services/**: Services and utility functions for the application.
+- **config/**: Configuration settings for the application.
+- **core/**: Core functionality and database operations.
 
 ## ⚙️ Environment Variables
 
