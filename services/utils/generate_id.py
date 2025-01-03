@@ -5,7 +5,7 @@ def generateTxnId():
     return f'IRMUN{str(uuid4()).replace("-", "")}'
 
 def generateMunarchyId(gender, exp, isSchoolStudent):
-    file_path = f'{os.path.abspath(os.path.join(os.getcwd(),'current_index.txt'))}'
+    file_path = f'{os.path.abspath(os.path.join(os.getcwd(),"current_index.txt"))}'
     if not os.path.exists(file_path):
         with open(file_path, 'w') as f:
             index = '00001'
