@@ -9,11 +9,8 @@ db = init_db()
 
 @allotment_bp.route('/allotment', methods=['POST'])
 async def portfolio_allotments():
-    #expects the following keys: MUNARCHY_ID, name, email_id, committee, portfolio
+    #expects the following keys: MUNARCHY_ID, committee, portfolio
     data = await request.get_json()
-    data.update({
-        "timeStamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    })
     existing_user = await db.allotment_records.find_one({
         "MUNARCHY_ID": data['MUNARCHY_ID']
     })
@@ -23,6 +20,21 @@ async def portfolio_allotments():
             "message": "Allotment for the given participant has already been done"
         }), 400
     
+    existing_user = await db.registration_records.find_one({
+        "MUNARCHY_ID": data['MUNARCHY_ID']
+    })
+
+    if not existing_user:
+        return jsonify({
+            "message": "No such participant exists"
+        }), 400
+
+    data.update({
+        "timeStamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "name": existing_user["name"],
+        "email_id": existing_user["email_id"],
+    })
+    
     try:
         await db.allotment_records.insert_one(data)
         asyncio.create_task(allotmentEmail(
@@ -31,6 +43,6 @@ async def portfolio_allotments():
             data['committee'],
             data['portfolio']
         ))
-        return make_response(jsonify({"Message":"Allotments completed successfully"}),201)
+        return await make_response(jsonify({"Message":"Allotments completed successfully"}),201)
     except Exception as e:
-        return make_response(jsonify({"Error":f"Error in processing allotments.\n{e}"}),400) 
+        return await make_response(jsonify({"Error":f"Error in processing allotments.\n{e}"}),400) 
