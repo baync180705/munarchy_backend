@@ -46,3 +46,32 @@ async def portfolio_allotments():
         return await make_response(jsonify({"Message":"Allotments completed successfully"}),201)
     except Exception as e:
         return await make_response(jsonify({"Error":f"Error in processing allotments.\n{e}"}),400) 
+    
+@allotment_bp.route('/fetchAllotmentStatus', methods=['POST'])
+async def fetch_allotment_status():
+    data = await request.get_json()
+    
+    existing_user = await db.registration_records.find_one({
+        "MUNARCHY_ID": data['MUNARCHY_ID']
+    })
+    if not existing_user:
+        return jsonify({
+            "message": "The user with the given MUNARCHY_ID does not exist"
+        }), 400
+    
+    existing_user = await db.registration_records.find_one({
+        "MUNARCHY_ID": data['MUNARCHY_ID']
+    })
+    if not existing_user['pay_status']:
+        return jsonify({
+            "message": "The user with the given MUNARCHY_ID has not paid the registration fee"
+        }), 400
+    existing_user = await db.allotment_records.find_one({
+        "MUNARCHY_ID": data['MUNARCHY_ID']
+    })
+    if not existing_user:
+        return jsonify({
+            "message": "Allotment for the given participant has not yet been done. Please visit us again !!"
+        }), 400
+    existing_user.pop('_id')
+    return jsonify(existing_user), 200
